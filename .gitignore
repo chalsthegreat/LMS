@@ -1,0 +1,15 @@
+.DS_Store
+Thumbs.db
+
+# Ignore logs
+*.log
+
+# Ignore environment files
+.env
+
+# Ignore uploaded files (if you have user uploads)
+uploads/
+temp/
+
+# Ignore cache
+cache/
