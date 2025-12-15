@@ -70,8 +70,8 @@ function getStatistics($conn) {
         $member_sql = "SELECT 
                         COUNT(CASE WHEN status = 'borrowed' THEN 1 END) as currently_borrowed,
                         COUNT(CASE WHEN status = 'overdue' THEN 1 END) as overdue_books,
-                        COUNT(CASE WHEN status = 'returned' THEN 1 END) as total_returned,
-                        COALESCE(SUM(CASE WHEN status IN ('borrowed', 'overdue') THEN fine_amount END), 0) as total_fines
+                        COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending_requests,
+                        COUNT(CASE WHEN status = 'returned' THEN 1 END) as total_returned
                     FROM borrowings 
                     WHERE user_id = ?";
         
@@ -87,8 +87,8 @@ function getStatistics($conn) {
             'statistics' => [
                 'currently_borrowed' => (int)$stats['currently_borrowed'],
                 'overdue_books' => (int)$stats['overdue_books'],
-                'total_returned' => (int)$stats['total_returned'],
-                'total_fines' => number_format((float)$stats['total_fines'], 2, '.', '')
+                'pending_requests' => (int)$stats['pending_requests'],
+                'total_returned' => (int)$stats['total_returned']
             ]
         ]);
     }

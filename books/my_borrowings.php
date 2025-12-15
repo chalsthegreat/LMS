@@ -682,6 +682,32 @@ document.addEventListener('keydown', function(e) {
         closeCancelModal();
     }
 });
+
+// Add this script section to my_borrowings.php after the existing JavaScript
+
+// Check for URL filter parameter on page load
+document.addEventListener('DOMContentLoaded', function() {
+    // Get filter from URL parameter
+    const urlParams = new URLSearchParams(window.location.search);
+    const filterParam = urlParams.get('filter');
+    
+    if (filterParam) {
+        // Map filter values to status filter options
+        const filterMap = {
+            'borrowed': 'borrowed',
+            'overdue': 'overdue',
+            'pending': 'pending',
+            'returned': 'returned'
+        };
+        
+        if (filterMap[filterParam]) {
+            document.getElementById('statusFilter').value = filterMap[filterParam];
+        }
+    }
+    
+    loadStatistics();
+    loadBorrowings();
+});
 </script>
 
 <?php require_once '../includes/footer.php'; ?>

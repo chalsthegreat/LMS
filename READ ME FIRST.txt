@@ -1,0 +1,21 @@
+create database "lms" and import this sql lms
+
+accounts:
+
+ADMIN
+user: admin
+pw: password
+
+LIBRARIAN
+user:librarian
+pw:  password
+
+
+MEMBER:
+member: member
+pw: password
+
+
+deployed site: https://yapidzlibrary.free.nf/
+
+GitHub repository: https://github.com/chalsthegreat/LMS

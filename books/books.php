@@ -114,16 +114,85 @@ $message = getMessage();
     <!-- Pagination will be loaded here -->
 </div>
 
+<!-- Add to Cart Modal -->
+<div id="addToCartModal" class="hidden fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+    <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 transform transition-all">
+        <div class="p-6">
+            <div class="flex items-center justify-center w-12 h-12 mx-auto bg-green-100 rounded-full mb-4">
+                <i class="fas fa-cart-plus text-green-600 text-2xl"></i>
+            </div>
+            <h3 class="text-xl font-bold text-gray-900 text-center mb-2">Add to Cart</h3>
+            <p class="text-gray-600 text-center mb-4">
+                How many copies of "<strong id="modalBookTitle"></strong>" do you want to borrow?
+            </p>
+            
+            <div class="mb-6">
+                <label class="block text-sm font-semibold text-gray-700 mb-2 text-center">Quantity</label>
+                <div class="flex items-center justify-center space-x-4">
+                    <button onclick="decrementQuantity()" 
+                            class="bg-gray-200 text-gray-700 w-12 h-12 rounded-lg hover:bg-gray-300 transition font-bold text-xl">
+                        <i class="fas fa-minus"></i>
+                    </button>
+                    <input type="number" id="cartQuantity" value="1" min="1" 
+                           class="w-24 text-center text-3xl font-bold border-2 border-gray-300 rounded-lg py-3 focus:border-green-500 focus:outline-none">
+                    <button onclick="incrementQuantity()" 
+                            class="bg-gray-200 text-gray-700 w-12 h-12 rounded-lg hover:bg-gray-300 transition font-bold text-xl">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                </div>
+                <p class="text-sm text-gray-500 text-center mt-3">
+                    <i class="fas fa-info-circle mr-1"></i>
+                    Available: <strong id="modalAvailableQty"></strong> copies
+                </p>
+            </div>
+            
+            <div class="bg-green-50 rounded-lg p-4 mb-6">
+                <div class="flex items-start">
+                    <i class="fas fa-lightbulb text-green-600 mt-1 mr-3"></i>
+                    <div class="text-sm text-gray-700">
+                        <p class="font-semibold mb-1">Tip:</p>
+                        <p>Add multiple books to your cart and borrow them all at once!</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="flex gap-3">
+                <button onclick="closeAddToCartModal()" 
+                        class="flex-1 bg-gray-200 text-gray-700 px-4 py-3 rounded-lg hover:bg-gray-300 transition font-semibold">
+                    Cancel
+                </button>
+                <button id="addToCartBtn" onclick="addToCart()" 
+                        class="flex-1 bg-green-600 text-white px-4 py-3 rounded-lg hover:bg-green-700 transition font-semibold">
+                    <i class="fas fa-cart-plus mr-2"></i>Add to Cart
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
 // Global variables
 let currentPage = 1;
 const userRole = '<?php echo $role; ?>';
+let selectedBookId = null;
+let selectedBookMaxQty = 1;
 
 // Load books on page load
 document.addEventListener('DOMContentLoaded', function() {
     loadCategories();
     loadStatistics();
     loadBooks();
+    
+    // Quantity input validation
+    const quantityInput = document.getElementById('cartQuantity');
+    if (quantityInput) {
+        quantityInput.addEventListener('input', function() {
+            let value = parseInt(this.value) || 1;
+            if (value < 1) value = 1;
+            if (value > selectedBookMaxQty) value = selectedBookMaxQty;
+            this.value = value;
+        });
+    }
 });
 
 // Search form submit
@@ -173,7 +242,7 @@ async function loadCategories() {
     }
 }
 
-// Load statistics
+// Updated loadStatistics function for books.php
 async function loadStatistics() {
     try {
         const response = await fetch('get_books_data.php?action=statistics');
@@ -236,9 +305,9 @@ async function loadStatistics() {
                     </div>
                 `;
             } else {
-                // Member view - show personal borrowing statistics
+                // Member view - show personal borrowing statistics with clickable cards
                 html = `
-                    <div class="bg-white rounded-lg shadow-md p-6 border-l-4 border-blue-500">
+                    <a href="my_borrowings.php?filter=borrowed" class="bg-white rounded-lg shadow-md p-6 border-l-4 border-blue-500 hover:shadow-xl transition-all transform hover:-translate-y-1 cursor-pointer block">
                         <div class="flex items-center justify-between">
                             <div>
                                 <p class="text-gray-500 text-sm font-semibold uppercase">Currently Borrowed</p>
@@ -248,9 +317,9 @@ async function loadStatistics() {
                                 <i class="fas fa-book-reader text-blue-600 text-2xl"></i>
                             </div>
                         </div>
-                    </div>
+                    </a>
 
-                    <div class="bg-white rounded-lg shadow-md p-6 border-l-4 border-red-500">
+                    <a href="my_borrowings.php?filter=overdue" class="bg-white rounded-lg shadow-md p-6 border-l-4 border-red-500 hover:shadow-xl transition-all transform hover:-translate-y-1 cursor-pointer block">
                         <div class="flex items-center justify-between">
                             <div>
                                 <p class="text-gray-500 text-sm font-semibold uppercase">Overdue Books</p>
@@ -260,9 +329,21 @@ async function loadStatistics() {
                                 <i class="fas fa-exclamation-triangle text-red-600 text-2xl"></i>
                             </div>
                         </div>
-                    </div>
+                    </a>
 
-                    <div class="bg-white rounded-lg shadow-md p-6 border-l-4 border-green-500">
+                    <a href="my_borrowings.php?filter=pending" class="bg-white rounded-lg shadow-md p-6 border-l-4 border-yellow-500 hover:shadow-xl transition-all transform hover:-translate-y-1 cursor-pointer block">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-gray-500 text-sm font-semibold uppercase">Pending Requests</p>
+                                <p class="text-3xl font-bold text-gray-800 mt-2">${stats.pending_requests}</p>
+                            </div>
+                            <div class="bg-yellow-100 rounded-full p-4">
+                                <i class="fas fa-clock text-yellow-600 text-2xl"></i>
+                            </div>
+                        </div>
+                    </a>
+
+                    <a href="my_borrowings.php?filter=returned" class="bg-white rounded-lg shadow-md p-6 border-l-4 border-green-500 hover:shadow-xl transition-all transform hover:-translate-y-1 cursor-pointer block">
                         <div class="flex items-center justify-between">
                             <div>
                                 <p class="text-gray-500 text-sm font-semibold uppercase">Total Returned</p>
@@ -272,19 +353,7 @@ async function loadStatistics() {
                                 <i class="fas fa-check-circle text-green-600 text-2xl"></i>
                             </div>
                         </div>
-                    </div>
-
-                    <div class="bg-white rounded-lg shadow-md p-6 border-l-4 border-yellow-500">
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <p class="text-gray-500 text-sm font-semibold uppercase">Total Fines</p>
-                                <p class="text-3xl font-bold text-gray-800 mt-2">₱${parseFloat(stats.total_fines).toFixed(2)}</p>
-                            </div>
-                            <div class="bg-yellow-100 rounded-full p-4">
-                                <i class="fas fa-coins text-yellow-600 text-2xl"></i>
-                            </div>
-                        </div>
-                    </div>
+                    </a>
                 `;
             }
             
@@ -358,12 +427,40 @@ function displayBooks(books) {
             ? `<div class="absolute top-2 left-2 bg-blue-500 text-white px-3 py-1 rounded-full text-xs font-semibold">${book.category_name}</div>`
             : '';
         
-        const editButton = (userRole === 'admin' || userRole === 'librarian')
-            ? `<a href="edit_book.php?id=${book.book_id}" 
+        // Build action buttons based on role
+        let actionButtons = '';
+        if (userRole === 'member') {
+            if (isAvailable) {
+                actionButtons = `
+                    <button onclick="openAddToCartModal(${book.book_id}, '${book.title.replace(/'/g, "\\'")}', ${book.available_quantity})" 
+                            class="flex-1 bg-green-600 text-white text-center py-2 rounded-lg hover:bg-green-700 transition text-sm font-semibold">
+                        <i class="fas fa-cart-plus mr-1"></i>Add
+                    </button>
+                    <a href="book_details.php?id=${book.book_id}" 
+                       class="flex-1 bg-blue-600 text-white text-center py-2 rounded-lg hover:bg-blue-700 transition text-sm font-semibold">
+                        <i class="fas fa-eye mr-1"></i>View
+                    </a>
+                `;
+            } else {
+                actionButtons = `
+                    <a href="book_details.php?id=${book.book_id}" 
+                       class="flex-1 bg-blue-600 text-white text-center py-2 rounded-lg hover:bg-blue-700 transition text-sm font-semibold">
+                        <i class="fas fa-eye mr-1"></i>View Details
+                    </a>
+                `;
+            }
+        } else if (userRole === 'admin' || userRole === 'librarian') {
+            actionButtons = `
+                <a href="book_details.php?id=${book.book_id}" 
+                   class="flex-1 bg-blue-600 text-white text-center py-2 rounded-lg hover:bg-blue-700 transition text-sm font-semibold">
+                    <i class="fas fa-eye mr-1"></i>View
+                </a>
+                <a href="edit_book.php?id=${book.book_id}" 
                    class="flex-1 bg-green-600 text-white text-center py-2 rounded-lg hover:bg-green-700 transition text-sm font-semibold">
                     <i class="fas fa-edit mr-1"></i>Edit
-                </a>`
-            : '';
+                </a>
+            `;
+        }
         
         html += `
             <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition">
@@ -392,11 +489,7 @@ function displayBooks(books) {
                         </span>
                     </div>
                     <div class="flex gap-2">
-                        <a href="book_details.php?id=${book.book_id}" 
-                           class="flex-1 bg-blue-600 text-white text-center py-2 rounded-lg hover:bg-blue-700 transition text-sm font-semibold">
-                            <i class="fas fa-eye mr-1"></i>View
-                        </a>
-                        ${editButton}
+                        ${actionButtons}
                     </div>
                 </div>
             </div>
@@ -488,6 +581,139 @@ function changePage(page) {
     loadBooks();
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
+
+// Add to Cart Modal Functions
+function openAddToCartModal(bookId, bookTitle, availableQty) {
+    selectedBookId = bookId;
+    selectedBookMaxQty = availableQty;
+    
+    document.getElementById('modalBookTitle').textContent = bookTitle;
+    document.getElementById('modalAvailableQty').textContent = availableQty;
+    document.getElementById('cartQuantity').value = 1;
+    document.getElementById('cartQuantity').max = availableQty;
+    document.getElementById('addToCartModal').classList.remove('hidden');
+}
+
+function closeAddToCartModal() {
+    document.getElementById('addToCartModal').classList.add('hidden');
+    selectedBookId = null;
+    selectedBookMaxQty = 1;
+}
+
+function incrementQuantity() {
+    const input = document.getElementById('cartQuantity');
+    const current = parseInt(input.value) || 1;
+    if (current < selectedBookMaxQty) {
+        input.value = current + 1;
+    }
+}
+
+function decrementQuantity() {
+    const input = document.getElementById('cartQuantity');
+    const current = parseInt(input.value) || 1;
+    if (current > 1) {
+        input.value = current - 1;
+    }
+}
+
+async function addToCart() {
+    const quantity = parseInt(document.getElementById('cartQuantity').value);
+    const addBtn = document.getElementById('addToCartBtn');
+    
+    if (!selectedBookId || quantity < 1 || quantity > selectedBookMaxQty) {
+        showAlertMessage('error', 'Invalid quantity');
+        return;
+    }
+    
+    // Disable button and show loading
+    addBtn.disabled = true;
+    addBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Adding...';
+    
+    try {
+        const response = await fetch('../cart/add_to_cart.php', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: `book_id=${selectedBookId}&quantity=${quantity}`
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            // Update cart count in header
+            if (window.updateCartCount) {
+                window.updateCartCount();
+            }
+            
+            // Show success message
+            showAlertMessage('success', data.message);
+            
+            // Close modal
+            closeAddToCartModal();
+            
+            // Optional: Show link to view cart
+            setTimeout(() => {
+                const alertContainer = document.getElementById('alertContainer');
+                const viewCartLink = `
+                    <div class="mt-2">
+                        <a href="../cart/cart.php" class="inline-block bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition text-sm font-semibold">
+                            <i class="fas fa-shopping-cart mr-2"></i>View Cart
+                        </a>
+                    </div>
+                `;
+                alertContainer.innerHTML += viewCartLink;
+            }, 100);
+        } else {
+            showAlertMessage('error', data.message);
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        showAlertMessage('error', 'Failed to add to cart. Please try again.');
+    } finally {
+        // Re-enable button
+        addBtn.disabled = false;
+        addBtn.innerHTML = '<i class="fas fa-cart-plus mr-2"></i>Add to Cart';
+    }
+}
+
+// Helper function to show alert messages
+function showAlertMessage(type, message) {
+    const alertClass = type === 'success' ? 'green' : 'red';
+    const icon = type === 'success' ? 'check-circle' : 'exclamation-circle';
+    
+    const alertContainer = document.getElementById('alertContainer');
+    alertContainer.innerHTML = `
+        <div class="bg-${alertClass}-50 border-l-4 border-${alertClass}-500 text-${alertClass}-700 p-4 rounded" role="alert">
+            <div class="flex items-center">
+                <i class="fas fa-${icon} mr-2"></i>
+                <span>${message}</span>
+            </div>
+        </div>
+    `;
+    
+    // Scroll to top to show alert
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    
+    // Auto-hide after 5 seconds
+    setTimeout(() => {
+        alertContainer.innerHTML = '';
+    }, 5000);
+}
+
+// Close modal when clicking outside
+document.getElementById('addToCartModal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        closeAddToCartModal();
+    }
+});
+
+// Close modal with Escape key
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeAddToCartModal();
+    }
+});
 </script>
 
 <?php require_once '../includes/footer.php'; ?>
